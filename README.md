@@ -18,14 +18,14 @@ An agentic AI system that analyzes marketplace product listings, researches comp
 
 ## Run locally
 Create virtual environment:
-
+```bash
 python -m venv env
 source env/bin/activate   # or env\Scripts\activate on Windows
-
+```
 Install dependencies:
-
+```bash
 pip install -r requirements.txt
-
+```
 Run server:
 
 uvicorn app.main:app --reload
