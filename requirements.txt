@@ -12,11 +12,14 @@ httpx
 
 langchain
 langchain-core
+langchain_mistralai
 langchain-community
 langgraph
 
 requests
 tenacity
+beautiful-soup 
+tavily-python
 
 pgvector
 
