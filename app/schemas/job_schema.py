@@ -1,18 +1,27 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from typing import Optional, Any, Dict
 from datetime import datetime
 
 class JobCreate(BaseModel):
-    product_url: str  # The input URL to analyze
+    product_url: str
 
 class JobResponse(BaseModel):
-    job_id: UUID
+    """
+    Schema for the API response.
+    Maps the internal database 'id' to the external 'job_id'.
+    """
+    # FIX: The field name must be 'id' to match the SQLAlchemy model 'Job.id'
+    # The alias 'job_id' is what the user sees in the JSON response
+    id: UUID = Field(..., alias="job_id")
     product_url: str
     status: str
     analysis_result: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True # Allows SQLAlchemy models to be converted to Pydantic
+    # Pydantic V2 Configuration
+    model_config = ConfigDict(
+        from_attributes=True,   # Replaces orm_mode = True
+        populate_by_name=True   # Allows the API to accept/return 'job_id'
+    )
