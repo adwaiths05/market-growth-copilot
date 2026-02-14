@@ -27,5 +27,6 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 Run server:
-
+```bash
 uvicorn app.main:app --reload
+```
