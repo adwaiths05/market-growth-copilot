@@ -6,19 +6,21 @@ from uuid import UUID
 
 router = APIRouter()
 
+# app/api/v1/routes_metrics.py
+
 async def run_agent_workflow(job_id: str, product_url: str):
-    """
-    Helper function to execute the LangGraph workflow in the background.
-    """
     print(f"--- TRIGGERING AGENT FOR JOB {job_id} ---")
     try:
-        await app_workflow.ainvoke({
-            "job_id": job_id, 
-            "product_url": product_url
-        })
+        # Define the configuration with the thread_id
+        config = {"configurable": {"thread_id": job_id}} 
+        
+        await app_workflow.ainvoke(
+            {"job_id": job_id, "product_url": product_url},
+            config=config # Pass the config here!
+        )
     except Exception as e:
         print(f"--- AGENT ERROR for Job {job_id}: {str(e)} ---")
-
+        
 @router.get("/ping")
 def metrics_ping():
     return {"message": "metrics route working"}
@@ -55,16 +57,17 @@ def check_job_status(job_id: UUID):
     
     return job
 
+# app/api/v1/routes_metrics.py
+
 @router.post("/{job_id}/approve")
 async def approve_analysis(job_id: UUID):
-    """
-    Resumes the LangGraph workflow after a human has reviewed the 
-    draft analysis in the 'pending_review' state.
-    """
-    # This retrieves the paused state and resumes it until the 'saver' node completes
     try:
-        # We pass None as the input because we are just signaling 'resume'
-        await app_workflow.ainvoke(None, config={"configurable": {"thread_id": str(job_id)}})
+        # Use the job_id as the thread_id to resume the correct session
+        config = {"configurable": {"thread_id": str(job_id)}}
+        
+        # Passing None signals the graph to resume from where it was interrupted
+        await app_workflow.ainvoke(None, config=config)
+        
         return {"message": "Analysis approved and saved to database."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Approval failed: {str(e)}")

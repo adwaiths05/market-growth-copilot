@@ -1,3 +1,4 @@
+# app/agents/optimization_agent.py
 from langchain_mistralai import ChatMistralAI
 from app.core.config import settings
 from app.services.mcp_service import mcp_manager
@@ -6,7 +7,11 @@ llm = ChatMistralAI(model="mistral-small-latest", temperature=0.7, api_key=setti
 
 async def optimization_node(state):
     print("--- OPTIMIZATION: Generating growth strategies ---")
-    metrics = state.get("analysis_result", {}).get("metrics", "")
+    
+    # Access nested metrics safely
+    analysis_result = state.get("analysis_result", {})
+    metrics = analysis_result.get("metrics", analysis_result) # Fallback to top-level if not nested
+    
     job_id = str(state.get("job_id"))
     
     # Consult Internal MCP Tools
@@ -22,7 +27,7 @@ async def optimization_node(state):
     """
     response = await llm.ainvoke(prompt)
     
-    new_result = state["analysis_result"]
-    new_result["growth_strategy"] = response.content
+    # Update the existing analysis_result dict
+    analysis_result["growth_strategy"] = response.content
     
-    return {"analysis_result": new_result, "status": "optimized"}
+    return {"analysis_result": analysis_result, "status": "optimized"}

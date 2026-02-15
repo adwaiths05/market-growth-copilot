@@ -1,3 +1,7 @@
+# =================================================================
+# BACKEND (Python / FastAPI)
+# =================================================================
+
 # virtual environment
 env/
 venv/
@@ -26,3 +30,47 @@ Thumbs.db
 # build files
 dist/
 build/
+
+
+# =================================================================
+# FRONTEND (Next.js / Node / pnpm)
+# =================================================================
+# Dependencies
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+# Testing
+frontend/coverage/
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Production
+frontend/build/
+
+# Misc / OS
+frontend/.DS_Store
+*.pem
+
+# Debug logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+
+# Env files
+frontend/.env*
+
+# Vercel
+frontend/.vercel/
+
+# TypeScript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts

@@ -25,7 +25,7 @@ class MCPManager:
         # Configuration to run the specific client as a subprocess
         server_params = StdioServerParameters(
             command="python",
-            args=[f"mcp_clients/{client_filename}"]
+            args=[f"app/mcp_clients/{client_filename}"]
         )
         
         try:

@@ -1,6 +1,7 @@
 import asyncio
 from typing import TypedDict, List, Optional
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import RetryPolicy
 from app.agents.planner_agent import planner_node
 from app.agents.research_agent import research_node
@@ -10,12 +11,11 @@ from app.agents.critic_agent import critic_node
 from app.db.session import SessionLocal
 from app.models.job_models import Job
 
+memory = MemorySaver()
 
 api_retry_policy = RetryPolicy(
     retry_on=Exception,
     max_attempts=3,
-    wait_min=2.0,
-    wait_max=10.0
 )
 
 class AgentState(TypedDict):
@@ -76,5 +76,6 @@ workflow.add_edge("saver", END)
 
 # Compile the workflow
 app_workflow = workflow.compile(
+    checkpointer=memory,
     interrupt_before=["saver"]
 )
