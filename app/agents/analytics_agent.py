@@ -39,9 +39,17 @@ async def analytics_node(state):
     ]
     
     response = await llm_json.ainvoke(prompt)
-    analysis_data = json.loads(response.content)
     
-    # Ensure the output is nested under 'metrics' for the optimization agent
+    # Robust JSON extraction to handle potential LLM formatting issues
+    content = response.content
+    try:
+        # Remove markdown code blocks if present
+        content = re.sub(r"```json\s?|\s?```", "", content).strip()
+        analysis_data = json.loads(content)
+    except json.JSONDecodeError:
+        print("--- ANALYTICS ERROR: Failed to parse LLM JSON ---")
+        analysis_data = {"metrics": {}, "error": "Parsing failed"}
+    
     return {
         "analysis_result": analysis_data, 
         "status": "analyzed"

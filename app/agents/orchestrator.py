@@ -28,29 +28,24 @@ class AgentState(TypedDict):
 
 # 2. Define the Saver Node (Database Persistence)
 async def saver_node(state: AgentState):
-    """
-    Final node that saves all agent findings to the Neon Database.
-    Consolidates research, metrics, strategy, and critic reviews.
-    """
     print(f"--- SAVER: Persisting data for Job {state['job_id']} ---")
-    db = SessionLocal()
-    try:
-        job = db.query(Job).filter(Job.id == state["job_id"]).first()
-        if job:
-            # FIX: Consolidate ALL agent outputs into the analysis_result JSON field
-            job.analysis_result = {
-                "plan": state.get("research_plan"),
-                "raw_research": state.get("research_data"),
-                "agent_analysis": state.get("analysis_result") # Includes metrics, growth_strategy, and critic_review
-            }
-            job.status = "completed"
-            db.commit()
-            print("--- SAVER: Database updated successfully ---")
-    except Exception as e:
-        print(f"--- SAVER ERROR: {str(e)} ---")
-        db.rollback()
-    finally:
-        db.close()
+    
+    # Use context manager to ensure connection closure
+    with SessionLocal() as db:
+        try:
+            job = db.query(Job).filter(Job.id == state["job_id"]).first()
+            if job:
+                job.analysis_result = {
+                    "plan": state.get("research_plan"),
+                    "raw_research": state.get("research_data"),
+                    "agent_analysis": state.get("analysis_result")
+                }
+                job.status = "completed"
+                db.commit()
+                print("--- SAVER: Database updated successfully ---")
+        except Exception as e:
+            print(f"--- SAVER ERROR: {str(e)} ---")
+            db.rollback()
     return state
 
 # 3. Build the Graph
