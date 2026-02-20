@@ -1,43 +1,41 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from app.db.session import get_db, AsyncSessionLocal
+from app.db.session import get_db
 from app.services import job_service
 from app.schemas.job_schema import JobCreate, JobResponse
-from app.agents.orchestrator import app_workflow
+from app.workers.celery_worker import run_agent_pipeline_task
 
 router = APIRouter()
-
-async def run_agent_pipeline(job_id: str, product_url: str):
-    """Background task to run the LangGraph workflow."""
-    initial_state = {
-        "job_id": job_id,
-        "product_url": product_url,
-        "status": "started"
-    }
-    try:
-        await app_workflow.ainvoke(initial_state)
-    except Exception as e:
-        # Use an independent session to update failure status
-        async with AsyncSessionLocal() as db:
-            await job_service.update_job_status(db, job_id, status="failed", error=str(e))
 
 @router.post("/analyze", response_model=JobResponse)
 async def start_analysis(
     payload: JobCreate, 
-    background_tasks: BackgroundTasks, 
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Create job asynchronously
+    """
+    Initializes a marketplace analysis job and hands it off to a 
+    distributed Celery worker.
+    """
+    # 1. Create job record in the database with status 'pending'
     job = await job_service.create_job(db, product_url=payload.product_url)
     
-    # 2. Handoff to agent pipeline in background
-    background_tasks.add_task(run_agent_pipeline, str(job.id), job.product_url)
+    # 2. Handoff to agent pipeline via Celery/Redis
+    # .delay() sends the job to the queue and returns immediately, 
+    # decoupling the long-running agent orchestration from the API request.
+    run_agent_pipeline_task.delay(str(job.id), job.product_url)
     
+    # 3. Return the job metadata immediately with a 202-style response pattern
     return job
 
 @router.get("/status/{job_id}", response_model=JobResponse)
-async def get_analysis_status(job_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_analysis_status(
+    job_id: UUID, 
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves the current status and results of a specific analysis job.
+    """
     job = await job_service.get_job(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")

@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, Text
+from sqlalchemy import Column, String, DateTime, Text, Float, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from datetime import datetime
 from app.db.base import Base
@@ -10,6 +10,10 @@ class Job(Base):
     Stores request state, marketplace metadata, and final recommendations.
     """
     __tablename__ = "jobs"
+
+    total_tokens = Column(Integer, default=0)
+    total_cost = Column(Float, default=0.0)
+    node_latency = Column(JSONB, default=dict)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_url = Column(String, nullable=False)

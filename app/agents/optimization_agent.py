@@ -18,8 +18,8 @@ async def optimization_node(state):
     
     # 1. Robust State Extraction
     # Safely access nested metrics with fallbacks to avoid NoneType errors
-    analysis_result = state.get("analysis_result") or {}
-    metrics = analysis_result.get("metrics") or analysis_result
+    current_result = state.get("analysis_result")
+    metrics = current_result.metrics if current_result else None
     
     job_id = str(state.get("job_id"))
     product_url = state.get("product_url", "Unknown URL")
@@ -68,6 +68,6 @@ async def optimization_node(state):
     analysis_result["growth_strategy"] = response.content
     
     return {
-        "analysis_result": analysis_result, 
+        "analysis_result": current_result, 
         "status": "optimized"
     }
