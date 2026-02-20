@@ -12,15 +12,15 @@ celery_app = Celery(
 )
 
 @celery_app.task(name="run_agent_pipeline_task")
-def run_agent_pipeline_task(job_id: str, product_url: str):
+def run_agent_pipeline_task(job_id: str, product_url: str, resume: bool = False):
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(_execute_pipeline(job_id, product_url))
 
-async def _execute_pipeline(job_id: str, product_url: str):
+async def _execute_pipeline(job_id: str, product_url: str, resume: bool):
     # The thread_id allows PostgresSaver to track this specific execution
     config = {"configurable": {"thread_id": job_id}}
     
-    initial_state = {
+    initial_state = None if resume else {
         "job_id": job_id,
         "product_url": product_url,
         "research_data": [],
@@ -31,7 +31,8 @@ async def _execute_pipeline(job_id: str, product_url: str):
     }
     
     try:
-        # Execution with full persistence checkpointer
+        # ainvoke will either start fresh with initial_state 
+        # or resume based on thread_id in config
         await app_workflow.ainvoke(initial_state, config=config)
     except Exception as e:
         async with AsyncSessionLocal() as db:

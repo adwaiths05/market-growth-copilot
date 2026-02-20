@@ -86,3 +86,23 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
     except WebSocketDisconnect:
         stream_manager.disconnect(job_id, websocket)
         logger.info(f"Client disconnected from Job {job_id}")
+
+@router.post("/jobs/{job_id}/resume")
+async def resume_analysis(job_id: UUID, db: AsyncSession = Depends(get_db)):
+    """
+    Resumes a failed or interrupted job from its last checkpoint.
+    """
+    job = await job_service.get_job(db, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Check if there is actual state to resume from
+    resumable = await job_service.is_job_resumable(db, str(job_id))
+    
+    # Reset job status in DB
+    await job_service.reset_job_for_retry(db, str(job_id))
+    
+    # Trigger worker. If resumable is True, the worker will pick up state.
+    run_agent_pipeline_task.delay(str(job.id), job.product_url, resume=resumable)
+    
+    return {"message": "Job resumed", "job_id": str(job.id), "resumed_from_checkpoint": resumable}

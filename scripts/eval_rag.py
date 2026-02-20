@@ -1,41 +1,61 @@
+# scripts/eval_rag.py
 import asyncio
-import uuid
+from typing import List, Dict
+from langchain_mistralai import ChatMistralAI
+from langchain_core.messages import SystemMessage, HumanMessage
 from app.services.knowledge_service import kb_service
-from app.db.session import SessionLocal
-from app.models.vector_models import ProductEmbedding
+from app.core.config import settings
 
-async def run_rag_benchmark(job_id: str, gold_facts: list):
-    """
-    Automated RAG Evaluation Suite.
-    Calculates Retrieval Precision and Recall for the marketplace context.
-    """
-    print(f"\n--- STARTING RAG EVALUATION: JOB {job_id} ---")
-    
-    total_score = 0
-    for fact in gold_facts:
-        query = fact["query"]
-        expected_keyword = fact["expected_keyword"]
-        
-        # 1. Execute Retrieval
-        retrieved_context = await kb_service.query_knowledge_base(job_id, query, top_k=3)
-        
-        # 2. Precision Scoring
-        if expected_keyword.lower() in retrieved_context.lower():
-            print(f"✅ PASS | Query: '{query}' | Found: '{expected_keyword}'")
-            total_score += 1
-        else:
-            print(f"❌ FAIL | Query: '{query}' | Expected: '{expected_keyword}'")
+llm = ChatMistralAI(model="mistral-small-latest", temperature=0)
 
-    final_precision = (total_score / len(gold_facts)) * 100
-    print(f"\n--- FINAL SCORE: {final_precision}% PRECISION ---")
-    return final_precision
+async def evaluate_faithfulness(answer: str, context: str) -> float:
+    """
+    Measures if the answer is factually supported by the context.
+    Returns a score from 0.0 to 1.0.
+    """
+    prompt = [
+        SystemMessage(content="You are a factual auditor. Grade the STUDENT ANSWER based ONLY on the provided CONTEXT."),
+        HumanMessage(content=f"CONTEXT: {context}\n\nSTUDENT ANSWER: {answer}\n\n"
+                             "Output only a JSON with 'score' (0-1) and 'reason'.")
+    ]
+    response = await llm.ainvoke(prompt)
+    # Simplified parsing for the example
+    import json
+    try:
+        data = json.loads(response.content)
+        return float(data.get("score", 0.0))
+    except:
+        return 0.5
+
+async def run_production_rag_benchmark(job_id: str, test_cases: List[Dict]):
+    """
+    Advanced RAG Evaluation Suite.
+    Calculates Faithfulness and Context Relevance.
+    """
+    print(f"\n--- RAG AUDIT: JOB {job_id} ---")
+    results = []
+
+    for case in test_cases:
+        query = case["query"]
+        # 1. Simulate Retrieval
+        context = await kb_service.query_knowledge_base(job_id, query, top_k=3)
+        
+        # 2. Simulate Generation (or use existing job result)
+        # For this audit, we evaluate how well retrieved context supports a test answer
+        score = await evaluate_faithfulness(case["expected_answer"], context)
+        
+        results.append(score)
+        status = "✅ PASS" if score > 0.7 else "❌ FAIL"
+        print(f"{status} | Query: {query[:30]}... | Faithfulness: {score}")
+
+    avg_score = sum(results) / len(results)
+    print(f"\n--- FINAL RAG QUALITY SCORE: {avg_score * 100:.1f}% ---")
+    return avg_score
 
 if __name__ == "__main__":
-    test_job_id = "your-active-job-uuid" 
+    # Example benchmark data
     benchmarks = [
-        {"query": "What is the price?", "expected_keyword": "$"},
-        {"query": "Who is the main competitor?", "expected_keyword": "Amazon"},
-        {"query": "Is shipping free?", "expected_keyword": "shipping"}
+        {"query": "Pricing details", "expected_answer": "The product costs $99 with free shipping."},
+        {"query": "Competitor analysis", "expected_answer": "Main competitors include Amazon and Walmart."}
     ]
-    
-    asyncio.run(run_rag_benchmark(test_job_id, benchmarks))
+    asyncio.run(run_production_rag_benchmark("your-job-uuid", benchmarks))

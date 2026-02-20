@@ -40,6 +40,8 @@ class KnowledgeService:
         finally:
             db.close()
 
+    
+
     async def query_knowledge_base(self, job_id: str, query: str, top_k: int = 5) -> str:
     db = SessionLocal()
     try:
@@ -60,6 +62,15 @@ class KnowledgeService:
         return "\n\n".join([r.content for r in results])
     finally:
         db.close()
+
+    # app/services/knowledge_service.py (Add this method)
+    async def get_raw_context_for_eval(self, job_id: str, query: str) -> str:
+    """
+    Retrieves the top-k document chunks specifically for quality auditing.
+    """
+    # This logic should match your vector search implementation
+        results = await self.vector_store.similarity_search(query, k=3, filter={"job_id": job_id})
+        return "\n".join([doc.page_content for doc in results])
 
 # Export a singleton instance
 kb_service = KnowledgeService()

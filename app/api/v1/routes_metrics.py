@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from app.services.job_service import create_job, get_job
 from app.schemas.job_schema import JobResponse, JobCreate
 from app.agents.orchestrator import app_workflow
 from uuid import UUID
+from app.db.session import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -57,8 +59,31 @@ def check_job_status(job_id: UUID):
     
     return job
 
-# app/api/v1/routes_metrics.py
-
+@router.get("/{job_id}/telemetry")
+async def get_job_telemetry(job_id: UUID, db: AsyncSession = Depends(get_db)):
+    """
+    Returns cost and performance metrics for a specific analysis job.
+    Used for observability and client-side cost reporting.
+    """
+    job = await job_service.get_job(db, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    return {
+        "job_id": str(job.id),
+        "status": job.status,
+        "financials": {
+            "total_tokens": job.total_tokens,
+            "total_cost_usd": job.total_cost,
+            "currency": "USD"
+        },
+        "performance": {
+            "node_latency_breakdown": job.node_latency,
+            "created_at": job.created_at,
+            "updated_at": job.updated_at
+        }
+    }
+    
 @router.post("/{job_id}/approve")
 async def approve_analysis(job_id: UUID):
     try:

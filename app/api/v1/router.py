@@ -1,8 +1,17 @@
+# app/api/v1/router.py
 from fastapi import APIRouter
-from app.api.v1.routes_metrics import router as metrics_router
-from app.api.v1.routes_analysis import router as analysis_router
+from app.api.v1 import routes_analysis, routes_metrics # Import metrics
 
 api_router = APIRouter()
 
-# Only include active, functional routers
-api_router.include_router(metrics_router, prefix="/analysis", tags=["Marketplace Analysis"])
+api_router.include_router(
+    routes_analysis.router, 
+    prefix="/analysis", 
+    tags=["analysis"]
+)
+
+api_router.include_router(
+    routes_metrics.router, 
+    prefix="/metrics", 
+    tags=["observability"]
+)

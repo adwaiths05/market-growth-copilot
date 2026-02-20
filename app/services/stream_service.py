@@ -1,7 +1,9 @@
+# app/services/stream_service.py
+import json
+from typing import Dict, List
 from fastapi import WebSocket
-from typing import List, Dict
 
-class ConnectionManager:
+class StreamManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
 
@@ -11,9 +13,22 @@ class ConnectionManager:
             self.active_connections[job_id] = []
         self.active_connections[job_id].append(websocket)
 
+    def disconnect(self, job_id: str, websocket: WebSocket):
+        if job_id in self.active_connections:
+            self.active_connections[job_id].remove(websocket)
+
     async def broadcast_status(self, job_id: str, message: dict):
+        """Broadcasts status updates (existing)."""
         if job_id in self.active_connections:
             for connection in self.active_connections[job_id]:
-                await connection.send_json(message)
+                await connection.send_json({"type": "status", "data": message})
 
-stream_manager = ConnectionManager()
+    async def broadcast_token(self, job_id: str, token: str):
+        """
+        New: Broadcasts individual tokens for real-time text generation UI.
+        """
+        if job_id in self.active_connections:
+            for connection in self.active_connections[job_id]:
+                await connection.send_json({"type": "token", "token": token})
+
+stream_manager = StreamManager()

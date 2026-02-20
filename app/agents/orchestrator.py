@@ -1,7 +1,7 @@
 import asyncio
 import time
 import operator
-from typing import TypedDict, List, Optional, Annotated
+from typing import TypedDict, List, Optional, Annotated, Dict
 from langgraph.graph import StateGraph, END
 from sqlalchemy.future import select
 from app.db.session import AsyncSessionLocal, engine
@@ -13,7 +13,8 @@ from app.agents.analytics_agent import analytics_node
 from app.agents.optimization_agent import optimization_node
 from app.agents.critic_agent import critic_node
 from langgraph.checkpoint.postgres import PostgresSaver
-from app.services.stream_service import stream_manager # Import the new stream service
+from app.services.stream_service import stream_manager 
+from app.services.stream_service import stream_manager
 
 class AgentState(TypedDict):
     job_id: str
@@ -27,6 +28,60 @@ class AgentState(TypedDict):
     status: str
 
 checkpoint_saver = PostgresSaver(engine)
+INPUT_COST_PER_1K = 0.0002
+OUTPUT_COST_PER_1K = 0.0006
+
+def track_telemetry(response: Any, node_name: str, start_time: float) -> Dict[str, Any]:
+    """
+    Calculates token usage, costs, and latency for a specific node execution.
+    """
+    duration = time.time() - start_time
+    
+    # Extract token usage from LangChain/Mistral response
+    # Handling cases where response might be structured output or standard AIMessage
+    usage = getattr(response, 'usage_metadata', {}) if response else {}
+    
+    prompt_tokens = usage.get('input_tokens', 0)
+    completion_tokens = usage.get('output_tokens', 0)
+    total_tokens = prompt_tokens + completion_tokens
+    
+    # Calculate estimated cost
+    cost = ((prompt_tokens / 1000) * INPUT_COST_PER_1K) + \
+           ((completion_tokens / 1000) * OUTPUT_COST_PER_1K)
+    
+    return {
+        "tokens": total_tokens,
+        "cost": round(cost, 6),
+        "metrics": {
+            node_name: {
+                "latency_sec": round(duration, 2),
+                "tokens": total_tokens,
+                "cost": round(cost, 6)
+            }
+        }
+    }
+
+
+async def streaming_finalizer_node(state):
+    """
+    Final node that streams the result to the UI token-by-token 
+    before the saver persists it.
+    """
+    job_id = state.get("job_id")
+    final_analysis = state.get("analysis_result")
+    
+    if final_analysis and final_analysis.growth_strategy:
+        # Simulate token streaming for the UI
+        # In a real setup, you'd hook this into the LLM's astream() method
+        content = final_analysis.growth_strategy
+        words = content.split()
+        
+        for word in words:
+            await stream_manager.broadcast_token(job_id, word + " ")
+            # Small sleep to simulate natural typing speed for the UI
+            # await asyncio.sleep(0.05) 
+            
+    return state
 
 async def broadcaster_node(state: AgentState):
     """
