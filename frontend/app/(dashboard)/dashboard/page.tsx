@@ -1,116 +1,136 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Cpu, Search, BarChart3, TrendingUp, 
-  ShieldCheck, Loader2, CheckCircle2, AlertCircle 
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { analysisApi, JobResponse } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
+import { Loader2, Search, CheckCircle2, AlertCircle, Rocket, BarChart3, ShieldCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// --- Types for Agent State ---
-type AgentStatus = "waiting" | "running" | "completed" | "failed";
+export default function DashboardPage() {
+  const [url, setUrl] = useState("");
+  const [job, setJob] = useState<JobResponse | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-interface AgentState {
-  name: string;
-  id: string;
-  status: AgentStatus;
-  description: string;
-  icon: React.ElementType;
-}
-
-export default function CommandCenter() {
-  const { jobId } = useParams();
-  const [jobData, setJobData] = useState<any>(null);
-  const [error, setError] = useState(false);
-
-  // Mock initial state for visualization
-  const [agents, setAgents] = useState<AgentState[]>([
-    { id: "planner", name: "Planner", status: "running", description: "Decomposing URL into research tasks...", icon: Cpu },
-    { id: "researcher", name: "Researcher", status: "waiting", description: "Awaiting search parameters...", icon: Search },
-    { id: "analyst", name: "Analyst", status: "waiting", description: "Pending market data stream...", icon: BarChart3 },
-    { id: "optimizer", name: "Optimizer", status: "waiting", description: "Awaiting analysis results...", icon: TrendingUp },
-    { id: "critic", name: "Critic", status: "waiting", description: "Final validation queue...", icon: ShieldCheck },
-  ]);
-
-  // Polling logic to fetch job status from FastAPI
+  // Polling Effect: Automatically refresh status until job is terminal
   useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const res = await fetch(`http://localhost:8000/api/v1/analysis/${jobId}`);
-        const data = await res.json();
-        setJobData(data);
+    let pollInterval: NodeJS.Timeout;
 
-        // Logic to update agent statuses based on data.status and data.analysis_result
-        // (Implementation details depend on your exact backend state mapping)
-      } catch (err) {
-        console.error("Polling error:", err);
-      }
-    }, 3000);
+    if (job && !['completed', 'failed'].includes(job.status)) {
+      pollInterval = setInterval(async () => {
+        try {
+          const updatedJob = await analysisApi.getJobStatus(job.job_id);
+          setJob(updatedJob);
+        } catch (error) {
+          console.error("Polling failed:", error);
+        }
+      }, 3000); // 3-second intervals
+    }
 
     return () => clearInterval(pollInterval);
-  }, [jobId]);
+  }, [job]);
+
+  const handleRunAnalysis = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const initialJob = await analysisApi.startAnalysis(url);
+      setJob(initialJob);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background pt-24 px-6 relative overflow-hidden">
-      {/* Background Liquid Wave (inherited from globals.css) */}
-      
-      <div className="max-w-6xl mx-auto relative z-10">
-        <header className="mb-12 flex justify-between items-end">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tighter mb-2">Command Center</h1>
-            <p className="text-white/40 font-mono text-xs uppercase tracking-widest">
-              Job_ID: {jobId} // System_Status: Active_Swarm
-            </p>
-          </div>
-          <div className="text-right">
-             <span className="text-primary font-bold text-sm">Estimated Completion: 45s</span>
-          </div>
-        </header>
+    <div className="container max-w-5xl py-10 space-y-8">
+      <div className="space-y-2">
+        <h1 className="text-4xl font-bold tracking-tight">Mission Control</h1>
+        <p className="text-muted-foreground">Deploy our agentic swarm to optimize your marketplace presence.</p>
+      </div>
 
-        {/* BENTO GRID OF AGENTS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <AnimatePresence>
-            {agents.map((agent, i) => (
-              <AgentCard key={agent.id} agent={agent} index={i} />
-            ))}
-          </AnimatePresence>
-        </div>
+      {/* Input Section */}
+      <form onSubmit={handleRunAnalysis} className="flex flex-col md:flex-row gap-4">
+        <input
+          type="url"
+          required
+          placeholder="Paste Amazon or Shopify product URL..."
+          className="flex-1 rounded-lg border bg-background px-4 py-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <Button 
+  size="lg" 
+  // Convert potential null/undefined to a strict boolean for the 'disabled' prop
+  disabled={!!isSubmitting || (!!job && !['completed', 'failed'].includes(job.status))}
+>
+  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Rocket className="mr-2 h-4 w-4" />}
+  Execute Pipeline
+</Button>
+      </form>
 
-        {/* REAL-TIME LOG TERMINAL */}
-        <section className="mt-8 border border-white/5 bg-black/40 backdrop-blur-xl rounded-3xl p-6 h-64 overflow-y-auto font-mono text-[11px]">
-          <div className="text-primary mb-2">[SYSTEM] Initializing multi-agent handshake...</div>
-          <div className="text-white/40">[PLANNER] URL identified: Analyzing marketplace structure...</div>
-          {jobData?.status === "completed" && (
-             <div className="text-emerald-400">[SUCCESS] Mission complete. Analysis stored in Knowledge Base.</div>
+      {/* Active Job Progress */}
+      {job && (
+        <div className="grid gap-6">
+          <section className="rounded-xl border bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold capitalize">Status: {job.status}</h2>
+                <p className="text-sm text-muted-foreground font-mono">{job.job_id}</p>
+              </div>
+              {job.status === 'completed' ? (
+                <CheckCircle2 className="h-8 w-8 text-green-500" />
+              ) : job.status === 'failed' ? (
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              ) : (
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              )}
+            </div>
+
+            {/* Step Indicators */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {['researching', 'analyzed', 'optimized', 'completed'].map((step) => (
+                <div 
+                  key={step}
+                  className={cn(
+                    "flex items-center gap-2 text-sm font-medium p-2 rounded-md border",
+                    job.status === step ? "bg-primary/10 border-primary text-primary" : "opacity-50"
+                  )}
+                >
+                  <div className={cn("h-2 w-2 rounded-full", job.status === step ? "bg-primary animate-pulse" : "bg-muted")} />
+                  <span className="capitalize">{step}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Results Display */}
+          {job.status === 'completed' && job.analysis_result && (
+            <div className="grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+              <div className="rounded-xl border p-6 space-y-4">
+                <div className="flex items-center gap-2 font-bold text-lg"><BarChart3 className="h-5 w-5" /> Market Metrics</div>
+                <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto">
+                  {JSON.stringify(job.analysis_result.agent_analysis?.metrics, null, 2)}
+                </pre>
+              </div>
+
+              <div className="rounded-xl border p-6 space-y-4">
+                <div className="flex items-center gap-2 font-bold text-lg"><ShieldCheck className="h-5 w-5" /> Critic Approval</div>
+                <p className="text-sm italic text-muted-foreground border-l-4 pl-4">
+                  "{job.analysis_result.agent_analysis?.critic_review}"
+                </p>
+              </div>
+
+              <div className="md:col-span-2 rounded-xl border bg-primary text-primary-foreground p-8">
+                <h3 className="text-2xl font-bold mb-4">Growth Strategy</h3>
+                <div className="prose prose-invert max-w-none whitespace-pre-wrap opacity-90">
+                  {job.analysis_result.agent_analysis?.growth_strategy}
+                </div>
+              </div>
+            </div>
           )}
-        </section>
-      </div>
+        </div>
+      )}
     </div>
-  );
-}
-
-function AgentCard({ agent, index }: { agent: AgentState; index: number }) {
-  const Icon = agent.icon;
-  
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className={`p-6 rounded-3xl border transition-all duration-500 flex flex-col items-center text-center h-full
-        ${agent.status === 'running' ? 'border-primary bg-primary/5 shadow-[0_0_20px_rgba(var(--primary),0.1)]' : 'border-white/5 bg-white/[0.02]'}
-      `}
-    >
-      <div className={`p-4 rounded-2xl mb-4 ${agent.status === 'running' ? 'text-primary' : 'text-white/20'}`}>
-        {agent.status === 'running' ? <Loader2 className="h-8 w-8 animate-spin" /> : <Icon className="h-8 w-8" />}
-      </div>
-      
-      <h3 className="font-bold text-sm mb-2 uppercase tracking-widest">{agent.name}</h3>
-      <p className="text-[11px] text-white/40 leading-relaxed mb-4">{agent.description}</p>
-      
-      {agent.status === 'completed' && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
-      {agent.status === 'waiting' && <div className="h-1.5 w-1.5 rounded-full bg-white/10" />}
-    </motion.div>
   );
 }

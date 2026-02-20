@@ -1,42 +1,32 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from app.models.job_models import Job
-from app.db.session import SessionLocal
 from uuid import UUID
 from datetime import datetime
 
-def create_job(product_url: str) -> Job:
-    """Initializes a new analysis job with validation."""
-    db = SessionLocal()
-    try:
-        job = Job(
-            product_url=product_url,
-            status="pending",
-            created_at=datetime.utcnow()
-        )
-        db.add(job)
-        db.commit()
-        db.refresh(job)
-        return job
-    finally:
-        db.close()
+async def create_job(db: AsyncSession, product_url: str) -> Job:
+    """Initializes a new analysis job asynchronously."""
+    job = Job(
+        product_url=product_url,
+        status="pending",
+        created_at=datetime.utcnow()
+    )
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+    return job
 
-def update_job_status(job_id: str, status: str, error: str = None):
+async def update_job_status(db: AsyncSession, job_id: str, status: str, error: str = None):
     """Updates the job status during the agent workflow."""
-    db = SessionLocal()
-    try:
-        job = db.query(Job).filter(Job.id == job_id).first()
-        if job:
-            job.status = status
-            if error:
-                job.error_message = error
-            db.commit()
-    finally:
-        db.close()
+    result = await db.execute(select(Job).filter(Job.id == job_id))
+    job = result.scalars().first()
+    if job:
+        job.status = status
+        if error:
+            job.error_message = error
+        await db.commit()
 
-def get_job(job_id: UUID) -> Job:
+async def get_job(db: AsyncSession, job_id: UUID) -> Job:
     """Retrieves a specific job for polling."""
-    db = SessionLocal()
-    try:
-        return db.query(Job).filter(Job.id == job_id).first()
-    finally:
-        db.close()
+    result = await db.execute(select(Job).filter(Job.id == job_id))
+    return result.scalars().first()

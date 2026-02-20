@@ -16,7 +16,7 @@ class JobResponse(BaseModel):
     id: UUID = Field(..., alias="job_id")
     product_url: str
     status: str
-    analysis_result: Optional[Dict[str, Any]] = None
+    analysis_result: Optional[Dict[str, Any]] = Field(default_factory=dict)
     error_message: Optional[str] = None
     created_at: datetime
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.api.v1.routes_metrics import router as metrics_router
+from app.api.v1.routes_analysis import router as analysis_router
 
 api_router = APIRouter()
 
