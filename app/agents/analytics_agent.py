@@ -1,16 +1,14 @@
-# app/agents/analytics_agent.py
+import time
+import logging
 from langchain_mistralai import ChatMistralAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from app.core.config import settings
 from app.services.knowledge_service import kb_service
 from app.services.mcp_service import mcp_manager
 from app.schemas.agent_schemas import AgentAnalysisOutput, AnalyticsMetrics
-import logging
 
-# Initialize logger for production observability
 logger = logging.getLogger(__name__)
 
-# Standard LLM instance for processing
 llm = ChatMistralAI(
     model="mistral-small-latest", 
     temperature=0,
@@ -18,55 +16,49 @@ llm = ChatMistralAI(
 )
 
 async def analytics_node(state):
-    print("--- ANALYTICS: Extracting key marketplace metrics ---")
+    start_time = time.time()
+    from app.agents.orchestrator import track_telemetry
+    
     job_id = state.get("job_id")
     url = state.get("product_url")
     
-    # 1. RAG Retrieval from persistent Knowledge Base
+    # 1. RAG Retrieval
     enriched_context = await kb_service.query_knowledge_base(
         job_id=job_id, 
         query="Average price, top competitors, and key selling points"
     )
     
-    # 2. Defensive MCP Tool Calls (Pricing + Reviews)
+    # 2. Tool Calls
     try:
         pricing = await mcp_manager.call_tool("pricing_client.py", "get_competitor_prices", {"product_url": url})
         reviews = await mcp_manager.call_tool("review_client.py", "analyze_product_reviews", {"product_url": url})
     except Exception as e:
-        logger.error(f"MCP Tool execution failed in Analytics: {e}")
         pricing, reviews = "Data unavailable", "Data unavailable"
     
     # 3. Structured Output Enforcement
-    # This forces the LLM to return an instance of AnalyticsMetrics directly
     structured_llm = llm.with_structured_output(AnalyticsMetrics)
     
     prompt = [
-        SystemMessage(content="""You are a Senior Market Analyst. 
-        Your task is to extract highly accurate market metrics from the provided data.
-        Ensure 'average_price' is a float and 'key_selling_points' is a concise list."""),
-        HumanMessage(content=f"Research Context: {enriched_context}\nPricing Data: {pricing}\nReview Data: {reviews}")
+        SystemMessage(content="You are a Senior Market Analyst. Extract accurate metrics."),
+        HumanMessage(content=f"Research: {enriched_context}\nPricing: {pricing}\nReviews: {reviews}")
     ]
     
     try:
-        # The response here is a validated AnalyticsMetrics object
         metrics_response = await structured_llm.ainvoke(prompt)
+        telemetry = track_telemetry(metrics_response, "analytics", start_time)
         
-        # 4. Wrap in the Agent Contract
-        # We initialize the contract with the validated metrics
         analysis_result = AgentAnalysisOutput(
             metrics=metrics_response,
-            confidence_score=0.95 # Hardened metadata for production logic
+            confidence_score=0.95
         )
         
         return {
             "analysis_result": analysis_result, 
-            "status": "analyzed"
+            "status": "analyzed",
+            "total_tokens": telemetry["tokens"],
+            "total_cost": telemetry["cost"],
+            "node_metrics": telemetry["metrics"]
         }
-
     except Exception as e:
-        logger.error(f"Structured output validation failed: {e}")
-        # Fallback to a safe state to prevent graph execution failure
-        return {
-            "analysis_result": AgentAnalysisOutput(confidence_score=0.0),
-            "status": "failed"
-        }
+        logger.error(f"Analytics validation failed: {e}")
+        return {"status": "failed", "node_metrics": {"analytics": {"error": str(e)}}}

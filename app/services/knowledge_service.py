@@ -41,36 +41,25 @@ class KnowledgeService:
             db.close()
 
     async def query_knowledge_base(self, job_id: str, query: str, top_k: int = 5) -> str:
-        """
-        Hardened Retrieval:
-        1. Semantic Search via Vector Distance.
-        2. Metadata Filtering.
-        3. (New) Content Filtering to avoid context stuffing.
-        """
-        db = SessionLocal()
-        try:
-            query_vector = await self.embeddings.aembed_query(query)
-            
-            # Use cosine distance (<=>) for similarity
-            results = db.query(ProductEmbedding).filter(
-                ProductEmbedding.job_id == uuid.UUID(job_id)
-            ).order_by(
-                ProductEmbedding.embedding.cosine_distance(query_vector)
-            ).limit(top_k).all()
-            
-            if not results:
-                return "No relevant research data found."
+    db = SessionLocal()
+    try:
+        query_vector = await self.embeddings.aembed_query(query)
+        
+        # Hardened Retrieval with Distance Threshold
+        # Only return chunks with a cosine distance less than 0.4 (high similarity)
+        results = db.query(ProductEmbedding).filter(
+            ProductEmbedding.job_id == uuid.UUID(job_id),
+            ProductEmbedding.embedding.cosine_distance(query_vector) < 0.4 
+        ).order_by(
+            ProductEmbedding.embedding.cosine_distance(query_vector)
+        ).limit(top_k).all()
+        
+        if not results:
+            return "No highly relevant research data found."
 
-            # Logic: If similarity score is too low, filter it out (Precision Hardening)
-            # This prevents the agent from hallucinating based on irrelevant data
-            context_parts = [r.content for r in results]
-            
-            return "\n\n".join(context_parts)
-        except Exception as e:
-            print(f"--- RETRIEVAL ERROR: {str(e)} ---")
-            return ""
-        finally:
-            db.close()
+        return "\n\n".join([r.content for r in results])
+    finally:
+        db.close()
 
 # Export a singleton instance
 kb_service = KnowledgeService()

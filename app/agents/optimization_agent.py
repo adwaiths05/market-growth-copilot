@@ -1,73 +1,34 @@
-# app/agents/optimization_agent.py
+import time
 from langchain_mistralai import ChatMistralAI
 from app.core.config import settings
 from app.services.mcp_service import mcp_manager
-import logging
 
-# Initialize logger for production tracking
-logger = logging.getLogger(__name__)
-
-llm = ChatMistralAI(
-    model="mistral-small-latest", 
-    temperature=0.7, 
-    api_key=settings.MISTRAL_API_KEY
-)
+llm = ChatMistralAI(model="mistral-small-latest", temperature=0.7)
 
 async def optimization_node(state):
-    print("--- OPTIMIZATION: Generating growth strategies ---")
+    start_time = time.time()
+    from app.agents.orchestrator import track_telemetry
     
-    # 1. Robust State Extraction
-    # Safely access nested metrics with fallbacks to avoid NoneType errors
     current_result = state.get("analysis_result")
-    metrics = current_result.metrics if current_result else None
+    metrics = current_result.metrics if current_result else "No metrics available"
     
-    job_id = str(state.get("job_id"))
-    product_url = state.get("product_url", "Unknown URL")
-    
-    # 2. Defensive MCP Tool Calls
-    # Wrapped in try-except to prevent one tool failure from killing the whole agent
+    # Defensive Tooling
     try:
-        inventory = await mcp_manager.call_tool(
-            "inventory_client.py", 
-            "get_stock_levels", 
-            {"product_id": job_id}
-        )
-    except Exception as e:
-        logger.error(f"Inventory tool failed: {e}")
+        inventory = await mcp_manager.call_tool("inventory_client.py", "get_stock_levels", {"product_id": state["job_id"]})
+    except:
         inventory = "Data unavailable"
 
-    try:
-        catalog = await mcp_manager.call_tool(
-            "catalog_client.py", 
-            "get_product_economics", 
-            {"product_id": job_id}
-        )
-    except Exception as e:
-        logger.error(f"Catalog tool failed: {e}")
-        catalog = "Data unavailable"
-    
-    # 3. Structured Prompting
-    prompt = f"""
-    You are a Senior E-commerce Growth Consultant.
-    
-    Market Context (from Research): {metrics}
-    Internal Inventory Status: {inventory}
-    Product Economics (Margins/COGS): {catalog}
-    
-    Based on the data above, suggest 3 highly specific and profitable strategies 
-    to increase sales and market share for the product at: {product_url}.
-    
-    Format your response with clear headings and data-backed justifications.
-    """
-    
-    # 4. LLM Invocation
+    prompt = f"Context: {metrics}\nInventory: {inventory}\nSuggest 3 growth strategies for {state['product_url']}."
     response = await llm.ainvoke(prompt)
     
-    # 5. Persistent State Update
-    # We update the dictionary in place to preserve analytics data while adding strategies
-    analysis_result["growth_strategy"] = response.content
+    # Update structured contract
+    current_result.growth_strategy = response.content
+    telemetry = track_telemetry(response, "optimization", start_time)
     
     return {
-        "analysis_result": current_result, 
-        "status": "optimized"
+        "analysis_result": current_result,
+        "status": "optimized",
+        "total_tokens": telemetry["tokens"],
+        "total_cost": telemetry["cost"],
+        "node_metrics": telemetry["metrics"]
     }

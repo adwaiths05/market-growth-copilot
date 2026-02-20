@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from app.db.session import get_db
 from app.services import job_service
 from app.schemas.job_schema import JobCreate, JobResponse
 from app.workers.celery_worker import run_agent_pipeline_task
+from app.services.stream_service import stream_manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -40,3 +44,45 @@ async def get_analysis_status(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+@router.get("/jobs/{job_id}/result")
+async def get_analysis_result(job_id: UUID, db: AsyncSession = Depends(get_db)):
+    """
+    Finalized Result Endpoint: Retrieves structured agent analysis 
+    and detailed performance/cost telemetry.
+    """
+    job = await job_service.get_job(db, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job.status != "completed":
+        return {
+            "status": job.status, 
+            "message": "Analysis in progress. Please use the status endpoint or WebSocket for updates."
+        }
+        
+    return {
+        "job_id": str(job.id),
+        "product_url": job.product_url,
+        "results": job.analysis_result,  # Contains the validated AgentAnalysisOutput
+        "telemetry": {
+            "total_tokens": job.total_tokens,
+            "total_cost": job.total_cost,
+            "latency_breakdown": job.node_latency  # Persisted by saver_node
+        }
+    }
+
+@router.websocket("/ws/{job_id}")
+async def websocket_endpoint(websocket: WebSocket, job_id: str):
+    """
+    Production WebSocket endpoint for real-time agent progress.
+    Allows the frontend to subscribe to specific Job ID events.
+    """
+    await stream_manager.connect(job_id, websocket)
+    try:
+        while True:
+            # Keep the connection alive; the broadcaster_node handles the pushing
+            await websocket.receive_text() 
+    except WebSocketDisconnect:
+        stream_manager.disconnect(job_id, websocket)
+        logger.info(f"Client disconnected from Job {job_id}")
