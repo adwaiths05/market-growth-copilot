@@ -1,7 +1,7 @@
 import asyncio
 import time
 import operator
-from typing import TypedDict, List, Optional, Annotated, Dict
+from typing import TypedDict, List, Optional, Annotated, Dict, Any
 from langgraph.graph import StateGraph, END
 from sqlalchemy.future import select
 from app.db.session import AsyncSessionLocal, engine
@@ -28,26 +28,31 @@ class AgentState(TypedDict):
     status: str
 
 checkpoint_saver = PostgresSaver(engine)
-INPUT_COST_PER_1K = 0.0002
-OUTPUT_COST_PER_1K = 0.0006
+INPUT_COST_PER_1M = 0.20  
+OUTPUT_COST_PER_1M = 0.60
 
 def track_telemetry(response: Any, node_name: str, start_time: float) -> Dict[str, Any]:
     """
-    Calculates token usage, costs, and latency for a specific node execution.
+    Calculates precise token usage, costs, and latency.
+    Works with both raw AIMessage and Pydantic structured outputs.
     """
     duration = time.time() - start_time
     
-    # Extract token usage from LangChain/Mistral response
-    # Handling cases where response might be structured output or standard AIMessage
-    usage = getattr(response, 'usage_metadata', {}) if response else {}
-    
-    prompt_tokens = usage.get('input_tokens', 0)
-    completion_tokens = usage.get('output_tokens', 0)
+    # 1. Extract usage metadata
+    # LangChain stores this in 'usage_metadata' or 'additional_kwargs'
+    usage = {}
+    if hasattr(response, 'usage_metadata'):
+        usage = response.usage_metadata
+    elif hasattr(response, 'additional_kwargs'):
+        usage = response.additional_kwargs.get('token_usage', {})
+
+    prompt_tokens = usage.get('input_tokens', usage.get('prompt_tokens', 0))
+    completion_tokens = usage.get('output_tokens', usage.get('completion_tokens', 0))
     total_tokens = prompt_tokens + completion_tokens
     
-    # Calculate estimated cost
-    cost = ((prompt_tokens / 1000) * INPUT_COST_PER_1K) + \
-           ((completion_tokens / 1000) * OUTPUT_COST_PER_1K)
+    # 2. Calculate actual cost
+    cost = ((prompt_tokens / 1,000,000) * INPUT_COST_PER_1M) + \
+           ((completion_tokens / 1,000,000) * OUTPUT_COST_PER_1M)
     
     return {
         "tokens": total_tokens,
@@ -56,7 +61,8 @@ def track_telemetry(response: Any, node_name: str, start_time: float) -> Dict[st
             node_name: {
                 "latency_sec": round(duration, 2),
                 "tokens": total_tokens,
-                "cost": round(cost, 6)
+                "cost": round(cost, 6),
+                "status": "success"
             }
         }
     }

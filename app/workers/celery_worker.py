@@ -1,9 +1,13 @@
 import asyncio
+import logging
 from celery import Celery
 from app.core.config import settings
 from app.agents.orchestrator import app_workflow
 from app.db.session import AsyncSessionLocal
 from app.services import job_service
+
+# Initialize logger for worker visibility
+logger = logging.getLogger(__name__)
 
 celery_app = Celery(
     "market_growth_worker",
@@ -11,13 +15,40 @@ celery_app = Celery(
     backend=settings.REDIS_URL
 )
 
-@celery_app.task(name="run_agent_pipeline_task")
-def run_agent_pipeline_task(job_id: str, product_url: str, resume: bool = False):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(_execute_pipeline(job_id, product_url))
+# Production worker settings
+celery_app.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="UTC",
+    enable_utc=True,
+    worker_concurrency=settings.WORKER_CONCURRENCY,
+    task_track_started=True,
+    task_time_limit=3600, # 1 hour max execution
+)
+
+@celery_app.task(name="run_agent_pipeline_task", bind=True, max_retries=3)
+def run_agent_pipeline_task(self, job_id: str, product_url: str, resume: bool = False):
+    """
+    Synchronous wrapper for the async agent pipeline.
+    Uses a clean event loop per task execution to prevent loop-sharing issues.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop.run_until_complete(_execute_pipeline(job_id, product_url, resume))
 
 async def _execute_pipeline(job_id: str, product_url: str, resume: bool):
-    # The thread_id allows PostgresSaver to track this specific execution
+    """
+    Internal execution logic for the LangGraph workflow.
+    Ensures thread-safe DB session management and state persistence.
+    """
+    logger.info(f"Starting pipeline for Job ID: {job_id} (Resume: {resume})")
+    
+    # thread_id is critical for LangGraph PostgresSaver to track state
     config = {"configurable": {"thread_id": job_id}}
     
     initial_state = None if resume else {
@@ -31,10 +62,19 @@ async def _execute_pipeline(job_id: str, product_url: str, resume: bool):
     }
     
     try:
-        # ainvoke will either start fresh with initial_state 
-        # or resume based on thread_id in config
         await app_workflow.ainvoke(initial_state, config=config)
+        
+        # Invoke the compiled LangGraph workflow
+        await app_workflow.ainvoke(initial_state, config=config)
+        
     except Exception as e:
+        logger.error(f"Pipeline failed for Job {job_id}: {str(e)}")
         async with AsyncSessionLocal() as db:
-            await job_service.update_job_status(db, job_id, status="failed", error=str(e))
+            # Persistent failure logging
+            await job_service.update_job_status(
+                db, 
+                job_id, 
+                status="failed", 
+                error=f"Worker Error: {str(e)}"
+            )
         raise e

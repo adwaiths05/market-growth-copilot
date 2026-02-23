@@ -59,11 +59,10 @@ def check_job_status(job_id: UUID):
     
     return job
 
-@router.get("/{job_id}/telemetry")
+@router.get("/jobs/{job_id}/telemetry")
 async def get_job_telemetry(job_id: UUID, db: AsyncSession = Depends(get_db)):
     """
-    Returns cost and performance metrics for a specific analysis job.
-    Used for observability and client-side cost reporting.
+    Returns detailed observability data for a specific analysis job.
     """
     job = await job_service.get_job(db, job_id)
     if not job:
@@ -71,17 +70,12 @@ async def get_job_telemetry(job_id: UUID, db: AsyncSession = Depends(get_db)):
         
     return {
         "job_id": str(job.id),
-        "status": job.status,
-        "financials": {
-            "total_tokens": job.total_tokens,
+        "summary": {
             "total_cost_usd": job.total_cost,
-            "currency": "USD"
+            "total_tokens": job.total_tokens,
+            "runtime_status": job.status
         },
-        "performance": {
-            "node_latency_breakdown": job.node_latency,
-            "created_at": job.created_at,
-            "updated_at": job.updated_at
-        }
+        "performance_breakdown": job.node_latency  # Dictionary of node-by-node latency and cost
     }
     
 @router.post("/{job_id}/approve")

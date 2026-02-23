@@ -25,42 +25,42 @@ llm = ChatMistralAI(
 
 async def planner_node(state):
     """
-    Planner Agent refactored for 100% Structured Contract Compliance.
-    Eliminates manual string parsing and ensures schema validation.
+    Planner Agent: Generates a 3-step research plan with full telemetry.
     """
     start_time = time.time()
-    # Local import to avoid circular dependency with orchestrator telemetry helpers
     from app.agents.orchestrator import track_telemetry 
     
     prompt = [
         SystemMessage(content=(
             "You are a Senior E-commerce Strategist. "
-            "Decompose the analysis of the provided product URL into a structured 3-step research plan. "
-            "Focus on market positioning, competitor pricing, and optimization opportunities."
+            "Decompose the analysis of the provided product URL into a structured 3-step research plan."
         )),
         HumanMessage(content=f"Analyze this URL: {state['product_url']}")
     ]
     
-    # 3. Execution with Automatic Validation
-    # If the LLM output doesn't match PlannerOutput, it raises a validation error immediately.
     try:
-        response: PlannerOutput = await llm.ainvoke(prompt)
+        # result contains {'parsed': PlannerOutput, 'raw': AIMessage}
+        result = await llm.ainvoke(prompt)
+        response_model = result['parsed']
+        raw_message = result['raw']
+        
+        # Capture real token usage from the raw AIMessage
+        telemetry = track_telemetry(raw_message, "planner", start_time) 
+        
+        return {
+            "research_plan": response_model.model_dump_json(),
+            "status": "planning_completed",
+            "total_tokens": telemetry.get("tokens", 0),
+            "total_cost": telemetry.get("cost", 0.0),
+            "node_metrics": telemetry.get("metrics", {})
+        }
     except Exception as e:
-        # Fallback logic or error reporting for production resilience
         return {
             "status": "failed",
-            "error": f"Planner failed schema validation: {str(e)}"
+            "node_metrics": {
+                "planner": {
+                    "error": str(e), 
+                    "latency_sec": round(time.time() - start_time, 2)
+                }
+            }
         }
-    
-    # Mock telemetry since the raw 'response' object is now a Pydantic model
-    # in production, you'd wrap this to capture raw tokens if needed
-    telemetry = track_telemetry(None, "planner", start_time) 
-    
-    # 4. Return strictly typed data to the LangGraph state
-    return {
-        "research_plan": response.model_dump_json(), # Store as JSON string for persistence
-        "status": "planning_completed",
-        "total_tokens": telemetry.get("tokens", 0),
-        "total_cost": telemetry.get("cost", 0.0),
-        "node_metrics": telemetry.get("metrics", {})
-    }
