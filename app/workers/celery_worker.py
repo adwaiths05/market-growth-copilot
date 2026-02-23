@@ -51,6 +51,7 @@ async def _execute_pipeline(job_id: str, product_url: str, resume: bool):
     # thread_id is critical for LangGraph PostgresSaver to track state
     config = {"configurable": {"thread_id": job_id}}
     
+    # If resuming, initial_state MUST be None so LangGraph loads from PostgresSaver
     initial_state = None if resume else {
         "job_id": job_id,
         "product_url": product_url,
@@ -62,15 +63,12 @@ async def _execute_pipeline(job_id: str, product_url: str, resume: bool):
     }
     
     try:
-        await app_workflow.ainvoke(initial_state, config=config)
-        
-        # Invoke the compiled LangGraph workflow
+        # FIX: Removed the duplicate ainvoke call
         await app_workflow.ainvoke(initial_state, config=config)
         
     except Exception as e:
         logger.error(f"Pipeline failed for Job {job_id}: {str(e)}")
         async with AsyncSessionLocal() as db:
-            # Persistent failure logging
             await job_service.update_job_status(
                 db, 
                 job_id, 

@@ -14,7 +14,6 @@ from app.agents.optimization_agent import optimization_node
 from app.agents.critic_agent import critic_node
 from langgraph.checkpoint.postgres import PostgresSaver
 from app.services.stream_service import stream_manager 
-from app.services.stream_service import stream_manager
 
 class AgentState(TypedDict):
     job_id: str
@@ -34,12 +33,9 @@ OUTPUT_COST_PER_1M = 0.60
 def track_telemetry(response: Any, node_name: str, start_time: float) -> Dict[str, Any]:
     """
     Calculates precise token usage, costs, and latency.
-    Works with both raw AIMessage and Pydantic structured outputs.
     """
     duration = time.time() - start_time
     
-    # 1. Extract usage metadata
-    # LangChain stores this in 'usage_metadata' or 'additional_kwargs'
     usage = {}
     if hasattr(response, 'usage_metadata'):
         usage = response.usage_metadata
@@ -50,9 +46,8 @@ def track_telemetry(response: Any, node_name: str, start_time: float) -> Dict[st
     completion_tokens = usage.get('output_tokens', usage.get('completion_tokens', 0))
     total_tokens = prompt_tokens + completion_tokens
     
-    # 2. Calculate actual cost
-    cost = ((prompt_tokens / 1,000,000) * INPUT_COST_PER_1M) + \
-           ((completion_tokens / 1,000,000) * OUTPUT_COST_PER_1M)
+    cost = ((prompt_tokens / 1000000) * INPUT_COST_PER_1M) + \
+           ((completion_tokens / 1000000) * OUTPUT_COST_PER_1M)
     
     return {
         "tokens": total_tokens,
@@ -67,43 +62,54 @@ def track_telemetry(response: Any, node_name: str, start_time: float) -> Dict[st
         }
     }
 
-
-async def streaming_finalizer_node(state):
+async def streaming_finalizer_node(state: AgentState):
     """
-    Final node that streams the result to the UI token-by-token 
-    before the saver persists it.
+    Final node that streams the result to the UI token-by-token.
     """
     job_id = state.get("job_id")
     final_analysis = state.get("analysis_result")
     
+    # Broadcast that streaming has started
+    await stream_manager.broadcast_status(job_id, {"status": "streaming_results"})
+
     if final_analysis and final_analysis.growth_strategy:
-        # Simulate token streaming for the UI
-        # In a real setup, you'd hook this into the LLM's astream() method
-        content = final_analysis.growth_strategy
+        # Simulate token streaming for the UI from the validated output
+        content = str(final_analysis.growth_strategy.growth_strategies)
         words = content.split()
         
         for word in words:
             await stream_manager.broadcast_token(job_id, word + " ")
-            # Small sleep to simulate natural typing speed for the UI
-            # await asyncio.sleep(0.05) 
+            # Optional: Small sleep for realistic typing effect
+            await asyncio.sleep(0.02) 
             
     return state
 
 async def broadcaster_node(state: AgentState):
     """
-    Broadcasts the current state status and metrics to connected 
-    WebSockets for real-time UI updates.
+    Broadcasts status and periodically syncs state to the main jobs table.
+    This prevents the 'Sync Issue' if a worker dies mid-stream.
     """
     job_id = state.get("job_id")
+    current_status = state.get("status")
+    
+    # 1. Real-time UI Update via WebSocket
     status_update = {
         "job_id": job_id,
-        "status": state.get("status"),
+        "status": current_status,
         "latest_metrics": state.get("node_metrics", {}),
         "timestamp": time.time()
     }
-    
-    # Non-blocking broadcast to all frontend clients subscribed to this job_id
     await stream_manager.broadcast_status(job_id, status_update)
+
+    # 2. Sync to Postgres 'jobs' table for reliability
+    # This ensures that even if the worker dies, the UI/API sees the latest node status.
+    async with AsyncSessionLocal() as db:
+        await job_service.update_job_status(
+            db, 
+            job_id, 
+            status=current_status
+        )
+        
     return state
 
 async def saver_node(state: AgentState):
@@ -124,27 +130,28 @@ async def saver_node(state: AgentState):
                 job.status = "completed"
                 await db.commit()
                 
-                # Final broadcast for completion
                 await stream_manager.broadcast_status(state["job_id"], {"status": "completed"})
         except Exception as e:
             await db.rollback()
             raise e
     return state
 
-# Graph Construction with Broadcaster Integration
+# Graph Construction
 workflow = StateGraph(AgentState)
 
+# Add all nodes including the finalizer
 workflow.add_node("planner", planner_node)
 workflow.add_node("researcher", research_node)
 workflow.add_node("analytics", analytics_node)
 workflow.add_node("optimization", optimization_node)
 workflow.add_node("critic", critic_node)
-workflow.add_node("broadcaster", broadcaster_node) # Add the broadcaster node
+workflow.add_node("broadcaster", broadcaster_node)
+workflow.add_node("finalizer", streaming_finalizer_node) # Node added
 workflow.add_node("saver", saver_node)
 
-# Execution Flow: Every node routes through the broadcaster for real-time updates
 workflow.set_entry_point("planner")
 
+# Execution Flow
 workflow.add_edge("planner", "broadcaster")
 workflow.add_edge("broadcaster", "researcher")
 
@@ -158,7 +165,8 @@ workflow.add_edge("optimization", "broadcaster")
 workflow.add_edge("broadcaster", "critic")
 
 workflow.add_edge("critic", "broadcaster")
-workflow.add_edge("broadcaster", "saver")
+workflow.add_edge("broadcaster", "finalizer") # Added edge to finalizer
+workflow.add_edge("finalizer", "saver")       # Finalizer leads to DB persistence
 
 workflow.add_edge("saver", END)
 
