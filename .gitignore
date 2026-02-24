@@ -1,76 +1,46 @@
 # =================================================================
-# BACKEND (Python / FastAPI)
+# BACKEND (Python / FastAPI / Alembic)
 # =================================================================
 
-# virtual environment
+# Virtual environment
 env/
 venv/
+.venv/
 
-# python cache
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# environment variables
+# Environment variables & Secrets (CRITICAL)
 .env
+.env.*
+!.env.example
+**/*.env
 
-# IDE files
-.vscode/
-.idea/
+# Alembic Migrations
+migrations/__pycache__/
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# logs
-*.log
-
-# test cache
+# Database & Caches
+*.sql
+*.dump
+celerybeat-schedule
 .pytest_cache/
 
-# build files
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Build files
 dist/
 build/
 
-
 # =================================================================
-# FRONTEND (Next.js / Node / pnpm)
+# FRONTEND (Exclusion)
 # =================================================================
-# Dependencies
-frontend/node_modules/
-frontend/.pnp
-frontend/.pnp.*
-frontend/.yarn/*
-!frontend/.yarn/patches
-!frontend/.yarn/plugins
-!frontend/.yarn/releases
-!frontend/.yarn/versions
-
-# Testing
-frontend/coverage/
-
-# Next.js
-frontend/.next/
-frontend/out/
-
-# Production
-frontend/build/
-
-# Misc / OS
-frontend/.DS_Store
-*.pem
-
-# Debug logs
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-frontend/.pnpm-debug.log*
-
-# Env files
-frontend/.env*
-
-# Vercel
-frontend/.vercel/
-
-# TypeScript
-frontend/*.tsbuildinfo
-frontend/next-env.d.ts
+# Completely ignore the frontend directory as requested
+frontend/

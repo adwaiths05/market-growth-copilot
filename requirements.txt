@@ -2,10 +2,12 @@ fastapi
 uvicorn
 python-dotenv
 pydantic
+asyncpg
 
 sqlalchemy
 psycopg[binary]
 alembic
+langgraph-checkpoint-postgres
 
 mistralai
 httpx
