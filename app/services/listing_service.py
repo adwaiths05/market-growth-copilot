@@ -1,14 +1,31 @@
-from typing import Dict, Any
+import re
+from typing import Optional
 
 class ListingService:
-    @staticmethod
-    def validate_url(url: str) -> bool:
-        """Ensures the URL is from a supported marketplace (e.g., Amazon, eBay)."""
-        supported_domains = ["amazon", "ebay", "shopify", "etsy", "walmart"]
-        return any(domain in url.lower() for domain in supported_domains)
+    """
+    Validates and cleans marketplace URLs to ensure they are supported 
+    before starting an analysis job.
+    """
+    SUPPORTED_DOMAINS = ["amazon.com", "ebay.com", "etsy.com", "walmart.com", "shopify.com"]
 
-    @staticmethod
-    def extract_listing_id(url: str) -> str:
-        """Extracts a unique identifier from the marketplace URL for tracking."""
-        # Simple placeholder logic for extraction
-        return url.split("/")[-1].split("?")[0]
+    @classmethod
+    def validate_and_clean_url(cls, url: str) -> Optional[str]:
+        """
+        Ensures the URL belongs to a supported marketplace and strips tracking parameters.
+        """
+        try:
+            # Basic regex to extract domain
+            domain_match = re.search(r"https?://(www\.)?([^/]+)", url)
+            if not domain_match:
+                return None
+            
+            domain = domain_match.group(2).lower()
+            
+            if any(supported in domain for supported in cls.SUPPORTED_DOMAINS):
+                # Strip query parameters (tracking IDs) for cleaner analysis
+                return url.split('?')[0]
+            return None
+        except Exception:
+            return None
+
+listing_service = ListingService()

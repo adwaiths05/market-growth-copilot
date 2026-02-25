@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     MISTRAL_API_KEY: str
     REDIS_URL: str = "redis://localhost:6379/0"
     WORKER_CONCURRENCY: int = 4
+    CELERY_TASK_TRACK_STARTED: bool = True
+    CELERY_TASK_TIME_LIMIT: int = 600
     APP_NAME: str = "Marketplace Growth Copilot"
     DEBUG: bool = False
 
