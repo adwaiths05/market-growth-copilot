@@ -15,6 +15,9 @@ from app.agents.critic_agent import critic_node
 from langgraph.checkpoint.postgres import PostgresSaver
 from app.services.stream_service import stream_manager 
 
+def merge_dicts(a: dict, b: dict) -> dict:
+    return {**a, **b}
+
 class AgentState(TypedDict):
     job_id: str
     product_url: str
@@ -23,8 +26,11 @@ class AgentState(TypedDict):
     analysis_result: Optional[AgentAnalysisOutput]
     total_tokens: Annotated[int, operator.add]
     total_cost: Annotated[float, operator.add]
-    node_metrics: Annotated[dict, operator.merge]
+    node_metrics: Annotated[dict, merge_dicts]
     status: str
+    execution_timeline: Annotated[list, operator.add] 
+    confidence_metrics: Annotated[dict, merge_dicts]
+    cost_metrics: Annotated[dict, merge_dicts]
 
 checkpoint_saver = PostgresSaver(engine)
 INPUT_COST_PER_1M = 0.20  

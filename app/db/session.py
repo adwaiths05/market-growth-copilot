@@ -1,4 +1,3 @@
-# [File: app/db/session.py]
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from dotenv import load_dotenv
@@ -10,7 +9,6 @@ engine = create_async_engine(
     DATABASE_URL, 
     pool_pre_ping=True,
     pool_recycle=300,
-    # This handles the SSL cleanly now that the URL is stripped of parameters
     connect_args={
         "ssl": "require",
         "server_settings": {"jit": "off"},
@@ -23,3 +21,11 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False
 )
+
+async def get_db():
+    """Dependency for getting async database sessions."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()

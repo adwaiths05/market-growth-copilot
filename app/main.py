@@ -18,7 +18,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+@app.get("/")
+async def root():
+    return {
+        "message": "Marketplace Growth Copilot API is Online",
+        "docs": "/docs",
+        "version": "1.0.0"
+    }
+    
 @app.get("/health")
 def health_check():
     return {"status": "ok", "app": settings.APP_NAME}

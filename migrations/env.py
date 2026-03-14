@@ -11,6 +11,7 @@ from alembic import context
 # Adjusted to match your Marketplace Growth Copilot directory structure
 from app.core.config import settings
 from app.db.base import Base
+from app.models.user_models import User
 # Import models to ensure they are registered on Base.metadata for autogenerate
 from app.models.job_models import Job
 from app.models.vector_models import ProductEmbedding

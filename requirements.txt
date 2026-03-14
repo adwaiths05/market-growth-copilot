@@ -25,7 +25,15 @@ requests
 tenacity
 beautiful-soup 
 tavily-python
+google-search-results
+firecrawl-py
 
 pgvector
-
+pydantic[email]
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+langgraph-checkpoint-postgres
 pytest
+celery 
+redis

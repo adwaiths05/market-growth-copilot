@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, Text, Float, Integer
+from sqlalchemy import Column, String, DateTime, Text, Float, Integer, JSON
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from datetime import datetime
 from app.db.base import Base
@@ -29,3 +29,6 @@ class Job(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    execution_timeline = Column(JSON, default=list)
+    confidence_metrics = Column(JSON, default=dict)
+    cost_metrics = Column(JSON, default=dict)

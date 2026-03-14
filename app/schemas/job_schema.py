@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 from datetime import datetime
 
 class JobCreate(BaseModel):
@@ -18,7 +18,11 @@ class JobResponse(BaseModel):
     status: str
     analysis_result: Optional[Dict[str, Any]] = Field(default_factory=dict)
     error_message: Optional[str] = None
+    execution_timeline: Optional[List[Dict[str, Any]]] = []
+    confidence_metrics: Optional[Dict[str, Any]] = {}
+    cost_metrics: Optional[Dict[str, Any]] = {}
     created_at: datetime
+    updated_at: datetime
 
     # Pydantic V2 Configuration
     model_config = ConfigDict(

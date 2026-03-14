@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.agents.orchestrator import app_workflow
 from app.db.session import AsyncSessionLocal
 from app.services import job_service
+from app.models.job_models import Job  # Used for direct DB updating
 
 # Initialize logger for worker visibility
 logger = logging.getLogger(__name__)
@@ -59,13 +60,36 @@ async def _execute_pipeline(job_id: str, product_url: str, resume: bool):
         "total_tokens": 0,
         "total_cost": 0.0,
         "node_metrics": {},
+        "execution_timeline": [],
+        "confidence_metrics": {},
+        "cost_metrics": {},
         "status": "started"
     }
     
     try:
-        # FIX: Removed the duplicate ainvoke call
-        await app_workflow.ainvoke(initial_state, config=config)
+        # Run the workflow and capture the final state output
+        final_state = await app_workflow.ainvoke(initial_state, config=config)
         
+        # Open DB Session to save the real data to the Job row
+        async with AsyncSessionLocal() as db:
+            job = await db.get(Job, job_id)
+            if job:
+                # Handle Pydantic model serialization if analysis_result is an object
+                result_data = final_state.get("analysis_result")
+                if hasattr(result_data, 'model_dump'):
+                    job.result = result_data.model_dump()
+                else:
+                    job.result = result_data
+                
+                # Write the new real metrics into the JSON columns
+                job.execution_timeline = final_state.get("execution_timeline", [])
+                job.confidence_metrics = final_state.get("confidence_metrics", {})
+                job.cost_metrics = final_state.get("cost_metrics", {})
+                job.status = "completed"
+                
+                await db.commit()
+                logger.info(f"Successfully saved metrics to Postgres for Job {job_id}")
+
     except Exception as e:
         logger.error(f"Pipeline failed for Job {job_id}: {str(e)}")
         async with AsyncSessionLocal() as db:

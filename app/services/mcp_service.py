@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from typing import Any, Dict
-import redis.async_io as redis
+import redis.asyncio as redis
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from app.core.config import settings

@@ -38,9 +38,11 @@ Thumbs.db
 # Build files
 dist/
 build/
-
+# Database & Checkpointing
+*.sqlite3
+checkpoints/
 # =================================================================
 # FRONTEND (Exclusion)
 # =================================================================
 # Completely ignore the frontend directory as requested
-frontend/
+fr/

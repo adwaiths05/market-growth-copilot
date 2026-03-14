@@ -1,9 +1,9 @@
 from sqlalchemy import text
 from app.db.session import engine
 from app.db.base import Base
-# You must import all models here so SQLAlchemy "sees" them
 from app.models.job_models import Job 
 from app.models.vector_models import ProductEmbedding
+from app.models.user_models import User
 
 def init_db():
     print("Connecting to Neon to sync schema...")
