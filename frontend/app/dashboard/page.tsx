@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { JobCard } from '@/components/job-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface StoredJob {
   job_id: string
@@ -14,9 +16,16 @@ interface StoredJob {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [jobs, setJobs] = useState<StoredJob[]>([])
 
   useEffect(() => {
+    // Check authentication on mount
+    if (!api.getIsAuthenticated()) {
+      router.push('/login')
+      return
+    }
+
     const stored = localStorage.getItem('analysis_jobs')
     if (stored) {
       setJobs(JSON.parse(stored))
@@ -61,9 +70,9 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-lg font-semibold mb-4">Recent Analyses</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {jobs.map((job) => (
+              {jobs.map((job, index) => (
                 <JobCard
-                  key={job.job_id}
+                  key={`${job.job_id}-${job.created_at}-${index}`}
                   job_id={job.job_id}
                   product_url={job.product_url}
                   created_at={job.created_at}

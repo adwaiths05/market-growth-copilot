@@ -5,10 +5,14 @@ import { KPIMetrics } from '@/lib/types'
 import { TrendingUp } from 'lucide-react'
 
 interface KPIRibbonProps {
-  metrics: KPIMetrics
+  metrics?: KPIMetrics | null
 }
 
 export function KPIRibbon({ metrics }: KPIRibbonProps) {
+  if (!metrics) {
+    return null
+  }
+
   const kpis = [
     {
       label: 'Conversion Rate',
@@ -40,7 +44,7 @@ export function KPIRibbon({ metrics }: KPIRibbonProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       {kpis.map((kpi) => (
-        <div key={kpi.label} className="card-premium p-6 space-y-3">
+        <div key={kpi.label} className="rounded-xl border border-border bg-card shadow-lg transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/30 p-6 space-y-3">
           <div className="flex items-center justify-between">
             <p className="metric-label">{kpi.label}</p>
             <TrendingUp className="w-4 h-4 text-success" />

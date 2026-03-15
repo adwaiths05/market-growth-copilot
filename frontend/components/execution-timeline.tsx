@@ -13,7 +13,7 @@ interface ExecutionTimelineProps {
 export function ExecutionTimeline({ status, isLoading }: ExecutionTimelineProps) {
   if (isLoading) {
     return (
-      <div className="card-premium p-6">
+      <div className="rounded-xl border border-border bg-card shadow-lg transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/30 p-6">
         <h3 className="text-lg font-semibold mb-4">Execution Timeline</h3>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -27,7 +27,7 @@ export function ExecutionTimeline({ status, isLoading }: ExecutionTimelineProps)
   const events = status?.events || []
 
   return (
-    <div className="card-premium p-6">
+    <div className="rounded-xl border border-border bg-card shadow-lg transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/30 p-6">
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Execution Timeline</h3>
         <p className="text-xs text-muted-foreground mt-1">
@@ -76,5 +76,6 @@ export function ExecutionTimeline({ status, isLoading }: ExecutionTimelineProps)
           </div>
         )}
       </div>
+    </div>
   )
 }

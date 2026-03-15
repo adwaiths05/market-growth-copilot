@@ -1,5 +1,6 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import { Card, CardContent } from '@/components/ui/card'
 import { AnalysisStatus } from '@/lib/types'
 import { CheckCircle2, Clock, AlertCircle, Loader2 } from 'lucide-react'
@@ -41,20 +42,39 @@ export function PipelineVisualization({
   )
 
   return (
-    <div className="card-premium p-6">
+    <div className="rounded-xl border border-border bg-card shadow-lg transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/30 p-6">
       <div className="space-y-8">
         {/* AI Workflow Timeline */}
         <div className="space-y-4">
           {PIPELINE_STAGES.map((stage, index) => {
             const stageStatus = getStageStatus(stage.id)
-            const isPending = currentStageIndex === index && status?.status === 'processing'
+            const isPending = currentStageIndex === index && status?.status === 'running'
+            const isCompleted = stageStatus === 'completed'
 
             return (
-              <div key={stage.id} className="space-y-2">
+              <motion.div
+                key={stage.id}
+                className="space-y-2"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
                 <div className="flex items-center gap-4">
-                  <div className={`pipeline-node w-10 h-10 flex items-center justify-center ${isPending ? 'running' : stageStatus === 'completed' ? 'completed' : ''}`}>
+                  <motion.div
+                    className={`pipeline-node w-10 h-10 flex items-center justify-center ${isPending ? 'running' : isCompleted ? 'completed' : ''}`}
+                    animate={isPending ? {
+                      boxShadow: [
+                        '0 0 0 0 rgba(99, 102, 241, 0.7)',
+                        '0 0 0 20px rgba(99, 102, 241, 0)',
+                      ],
+                    } : {}}
+                    transition={isPending ? {
+                      duration: 1.5,
+                      repeat: Infinity,
+                    } : {}}
+                  >
                     {getStageIcon(stageStatus, isPending)}
-                  </div>
+                  </motion.div>
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{stage.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">
@@ -63,11 +83,26 @@ export function PipelineVisualization({
                   </div>
                 </div>
 
-                {/* Gradient connector line */}
+                {/* Animated gradient connector line */}
                 {index < PIPELINE_STAGES.length - 1 && (
-                  <div className="ml-5 h-6 border-l-2 border-gradient-to-b from-primary to-transparent" />
+                  <div className="ml-5 h-6 relative">
+                    <motion.div
+                      className="absolute inset-0 border-l-2 border-primary"
+                      animate={isPending ? {
+                        boxShadow: [
+                          '0 0 10px 0 rgba(99, 102, 241, 0.5)',
+                          '0 0 20px 0 rgba(139, 92, 246, 0.3)',
+                          '0 0 10px 0 rgba(99, 102, 241, 0.5)',
+                        ],
+                      } : {}}
+                      transition={isPending ? {
+                        duration: 2,
+                        repeat: Infinity,
+                      } : {}}
+                    />
+                  </div>
                 )}
-              </div>
+              </motion.div>
             )
           })}
         </div>

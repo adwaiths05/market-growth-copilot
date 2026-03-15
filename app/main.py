@@ -1,4 +1,5 @@
 # app/main.py
+from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
@@ -25,10 +26,12 @@ async def root():
         "docs": "/docs",
         "version": "1.0.0"
     }
-    
+@app.get("/ping")
+async def ping():
+    return {"status": "online"}
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "app": settings.APP_NAME}
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "app": settings.APP_NAME}
 
 app.include_router(api_router, prefix="/api/v1")
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAnalysisStatus } from '@/hooks/use-analysis-status'
 import { PipelineVisualization } from '@/components/pipeline-visualization'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface PageProps {
   params: Promise<{ job_id: string }>
@@ -16,9 +17,23 @@ interface PageProps {
 
 export default function AnalysisPage({ params }: PageProps) {
   const router = useRouter()
-  const jobId = (params as any).job_id // For demo purposes during loading
+  
+  // Handle the Promise params in Next.js 16
+  const [jobId, setJobId] = React.useState<string | null>(null)
+  
+  React.useEffect(() => {
+    // Check authentication on mount
+    if (!api.getIsAuthenticated()) {
+      router.push('/login')
+      return
+    }
 
-  const { data: status, isLoading, error } = useAnalysisStatus(jobId)
+    Promise.resolve(params).then((resolvedParams) => {
+      setJobId(resolvedParams.job_id)
+    })
+  }, [params, router])
+
+  const { data: status, isLoading, error } = useAnalysisStatus(jobId || '')
 
   // Auto-redirect when analysis is complete
   useEffect(() => {

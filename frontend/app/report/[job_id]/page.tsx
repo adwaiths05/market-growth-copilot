@@ -1,5 +1,7 @@
 'use client'
 
+import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { KPIRibbon } from '@/components/kpi-ribbon'
@@ -17,16 +19,31 @@ interface PageProps {
 }
 
 export default function ReportPage({ params }: PageProps) {
-  const jobId = (params as any).job_id
+  const router = useRouter()
+  const [jobId, setJobId] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Check authentication on mount
+    if (!api.getIsAuthenticated()) {
+      router.push('/login')
+      return
+    }
+
+    Promise.resolve(params).then((resolvedParams) => {
+      setJobId(resolvedParams.job_id)
+    })
+  }, [params, router])
 
   const { data: result, isLoading, error } = useQuery({
     queryKey: ['analysis-result', jobId],
-    queryFn: () => api.getAnalysisResult(jobId),
+    queryFn: () => api.getAnalysisResult(jobId || ''),
+    enabled: !!jobId,
   })
 
   const { data: telemetry } = useQuery({
     queryKey: ['telemetry', jobId],
-    queryFn: () => api.getTelemetry(jobId),
+    queryFn: () => api.getTelemetry(jobId || ''),
+    enabled: !!jobId,
   })
 
   if (isLoading) {

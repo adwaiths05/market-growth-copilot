@@ -2,14 +2,17 @@ import time
 from langchain_mistralai import ChatMistralAI
 from app.core.config import settings
 from app.schemas.agent_schemas import OptimizationOutput
+import asyncio
 
 # Initialize LLM only if not in demo mode or if key is present
 llm = None
 if getattr(settings, "DEMO_MODE", False) == False and settings.MISTRAL_API_KEY:
     llm = ChatMistralAI(
         model="mistral-small-latest", 
-        temperature=0.7,
-        api_key=settings.MISTRAL_API_KEY
+        api_key=settings.MISTRAL_API_KEY,
+        temperature=0,
+    max_retries=5, 
+    timeout=60
     ).with_structured_output(OptimizationOutput, include_raw=True)
 
 async def optimization_node(state):
@@ -68,7 +71,7 @@ async def optimization_node(state):
     try:
         if not llm:
             raise ValueError("LLM not initialized. Check MISTRAL_API_KEY.")
-            
+        await asyncio.sleep(1.5)
         result = await llm.ainvoke(prompt)
         telemetry = track_telemetry(result['raw'], "optimization", start_time)
         

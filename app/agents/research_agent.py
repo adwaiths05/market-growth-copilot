@@ -4,6 +4,7 @@ import redis.asyncio as redis
 from langchain_mistralai import ChatMistralAI
 from tavily import TavilyClient
 from app.core.config import settings
+import asyncio
 
 # Shared Redis Client
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
@@ -56,7 +57,10 @@ async def research_node(state):
         evidence_count = len(search_context.split('\n'))
 
     # 3. Generate Summary
-    llm = ChatMistralAI(model="mistral-small-latest", api_key=settings.MISTRAL_API_KEY)
+    llm = ChatMistralAI(model="mistral-small-latest", api_key=settings.MISTRAL_API_KEY,temperature=0,
+    max_retries=5, 
+    timeout=60)
+    await asyncio.sleep(1.5)
     response = await llm.ainvoke(f"Summarize this research: {search_context}")
     
     # Cache the final summary

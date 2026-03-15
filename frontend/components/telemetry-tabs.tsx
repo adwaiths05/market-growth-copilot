@@ -7,8 +7,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface TelemetryTabsProps {
   telemetry: TelemetryData | undefined
-  renderStrategies: RenderStrategy[]
-  costMetrics: AnalysisResult['cost_metrics']
+  renderStrategies?: RenderStrategy[]
+  costMetrics?: AnalysisResult['cost_metrics']
   isLoading: boolean
 }
 
@@ -18,10 +18,19 @@ export function TelemetryTabs({
   costMetrics,
   isLoading,
 }: TelemetryTabsProps) {
-  const timelineData = telemetry?.pipeline_events.map((event) => ({
-    name: event.event_type,
-    duration: event.duration_ms || 0,
-  })) || []
+  const safeCostMetrics: AnalysisResult['cost_metrics'] = {
+    revenue_potential: costMetrics?.revenue_potential ?? 0,
+    cost_of_goods: costMetrics?.cost_of_goods ?? 0,
+    marketing_budget: costMetrics?.marketing_budget ?? 0,
+    operational_cost: costMetrics?.operational_cost ?? 0,
+  }
+
+  const safeRenderStrategies = renderStrategies ?? []
+  const timelineData =
+    telemetry?.pipeline_events?.map((event) => ({
+      name: event.event_type,
+      duration: event.duration_ms || 0,
+    })) || []
 
   return (
     <Card>
@@ -41,13 +50,13 @@ export function TelemetryTabs({
           <TabsContent value="insights" className="space-y-3">
             <div className="space-y-2">
               <h4 className="font-semibold text-sm">Render Strategies</h4>
-              {renderStrategies.length === 0 ? (
+              {safeRenderStrategies.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
                   No render strategies available
                 </p>
               ) : (
                 <div className="grid gap-2">
-                  {renderStrategies.map((strategy, idx) => (
+                  {safeRenderStrategies.map((strategy, idx) => (
                     <div key={idx} className="p-2 bg-muted rounded-lg text-xs">
                       <p className="font-medium">{strategy.name}</p>
                       <p className="text-muted-foreground">{strategy.description}</p>
@@ -118,25 +127,25 @@ export function TelemetryTabs({
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-xs text-muted-foreground">Revenue Potential</p>
                 <p className="text-lg font-semibold">
-                  ${costMetrics.revenue_potential.toFixed(2)}
+                  ${safeCostMetrics.revenue_potential.toFixed(2)}
                 </p>
               </div>
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-xs text-muted-foreground">COGS</p>
                 <p className="text-lg font-semibold">
-                  ${costMetrics.cost_of_goods.toFixed(2)}
+                  ${safeCostMetrics.cost_of_goods.toFixed(2)}
                 </p>
               </div>
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-xs text-muted-foreground">Marketing Budget</p>
                 <p className="text-lg font-semibold">
-                  ${costMetrics.marketing_budget.toFixed(2)}
+                  ${safeCostMetrics.marketing_budget.toFixed(2)}
                 </p>
               </div>
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-xs text-muted-foreground">Operational Cost</p>
                 <p className="text-lg font-semibold">
-                  ${costMetrics.operational_cost.toFixed(2)}
+                  ${safeCostMetrics.operational_cost.toFixed(2)}
                 </p>
               </div>
             </div>

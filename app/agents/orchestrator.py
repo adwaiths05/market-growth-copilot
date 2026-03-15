@@ -1,6 +1,7 @@
 import asyncio
 import time
 import operator
+from app.services import job_service
 from typing import TypedDict, List, Optional, Annotated, Dict, Any
 from langgraph.graph import StateGraph, END
 from sqlalchemy.future import select
@@ -12,27 +13,28 @@ from app.agents.research_agent import research_node
 from app.agents.analytics_agent import analytics_node
 from app.agents.optimization_agent import optimization_node
 from app.agents.critic_agent import critic_node
-from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.memory import MemorySaver
 from app.services.stream_service import stream_manager 
 
 def merge_dicts(a: dict, b: dict) -> dict:
     return {**a, **b}
-
+def keep_latest(left, right):
+    return right if right is not None else left
 class AgentState(TypedDict):
-    job_id: str
-    product_url: str
-    research_plan: Optional[str]
+    job_id: Annotated[str, keep_latest]
+    product_url: Annotated[str, keep_latest]
+    research_plan: Annotated[Optional[str], keep_latest]
+    status: Annotated[str, keep_latest]
+    analysis_result: Annotated[Optional[AgentAnalysisOutput], keep_latest]
     research_data: Annotated[List[str], operator.add]
-    analysis_result: Optional[AgentAnalysisOutput]
+    execution_timeline: Annotated[list, operator.add] 
     total_tokens: Annotated[int, operator.add]
     total_cost: Annotated[float, operator.add]
     node_metrics: Annotated[dict, merge_dicts]
-    status: str
-    execution_timeline: Annotated[list, operator.add] 
     confidence_metrics: Annotated[dict, merge_dicts]
     cost_metrics: Annotated[dict, merge_dicts]
 
-checkpoint_saver = PostgresSaver(engine)
+checkpoint_saver = MemorySaver()
 INPUT_COST_PER_1M = 0.20  
 OUTPUT_COST_PER_1M = 0.60
 

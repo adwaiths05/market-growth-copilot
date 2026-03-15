@@ -9,12 +9,13 @@ import { EvidenceModal } from '@/components/evidence-modal'
 import { Lightbulb } from 'lucide-react'
 
 interface AIRecommendationsPanelProps {
-  recommendations: AIRecommendation[]
+  recommendations?: AIRecommendation[]
 }
 
 export function AIRecommendationsPanel({
   recommendations,
 }: AIRecommendationsPanelProps) {
+  const safeRecommendations = recommendations ?? []
   const [selectedRec, setSelectedRec] = useState<AIRecommendation | null>(null)
 
   const getPriorityColor = (priority: string) => {
@@ -39,17 +40,17 @@ export function AIRecommendationsPanel({
             AI Recommendations
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            {recommendations.length} strategic recommendations
+            {safeRecommendations.length} strategic recommendations
           </p>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {recommendations.length === 0 ? (
+            {safeRecommendations.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No recommendations available
               </p>
             ) : (
-              recommendations.map((rec, idx) => (
+              safeRecommendations.map((rec, idx) => (
                 <div
                   key={idx}
                   className="p-3 border rounded-lg space-y-2 hover:bg-muted/50 transition-colors"

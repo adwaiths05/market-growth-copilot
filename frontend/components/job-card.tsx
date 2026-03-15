@@ -37,7 +37,7 @@ export function JobCard({ job_id, product_url, created_at }: JobCardProps) {
   }
 
   return (
-    <div className="card-premium p-6 space-y-4">
+    <div className="rounded-xl border border-border bg-card shadow-lg transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/30 p-6 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-3">
@@ -56,7 +56,7 @@ export function JobCard({ job_id, product_url, created_at }: JobCardProps) {
       </div>
 
       {/* Progress bar */}
-      {status?.status === 'processing' && (
+      {status?.status === 'running' && (
         <div className="space-y-2">
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Progress</span>

@@ -5,6 +5,7 @@ from app.agents.orchestrator import app_workflow
 from uuid import UUID
 from app.db.session import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.services import job_service
 
 router = APIRouter()
 
@@ -25,7 +26,9 @@ async def run_agent_workflow(job_id: str, product_url: str):
         
 @router.get("/ping")
 def metrics_ping():
-    return {"message": "metrics route working"}
+    return {"status": "online",
+        "message": "metrics route working",
+        "timestamp": "2026-03-14T..."}
 
 @router.post("/", response_model=JobResponse)
 async def start_analysis(payload: JobCreate, background_tasks: BackgroundTasks):

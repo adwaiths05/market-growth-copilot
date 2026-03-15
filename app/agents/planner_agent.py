@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from langchain_mistralai import ChatMistralAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from app.core.config import settings
+import asyncio
 
 # 1. Define the Strict Contract
 class ResearchStep(BaseModel):
@@ -20,7 +21,9 @@ class PlannerOutput(BaseModel):
 llm = ChatMistralAI(
     model="mistral-small-latest", 
     temperature=0, 
-    api_key=settings.MISTRAL_API_KEY
+    api_key=settings.MISTRAL_API_KEY,
+    max_retries=5, 
+    timeout=60,
 ).with_structured_output(PlannerOutput)
 
 async def planner_node(state):
@@ -40,6 +43,7 @@ async def planner_node(state):
     
     try:
         # result contains {'parsed': PlannerOutput, 'raw': AIMessage}
+        await asyncio.sleep(1.5)
         result = await llm.ainvoke(prompt)
         response_model = result['parsed']
         raw_message = result['raw']

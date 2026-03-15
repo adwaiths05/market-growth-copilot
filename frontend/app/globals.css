@@ -191,18 +191,13 @@
 }
 
 @layer utilities {
-  /* Card styling - premium SaaS feel */
-  .card-premium {
-    @apply rounded-xl border border-border bg-card shadow-lg transition-all duration-200 hover:border-primary hover:shadow-lg hover:shadow-primary/10;
-  }
-
-  .dark .card-premium {
-    @apply border-border hover:border-primary hover:shadow-primary/20;
-  }
-
   /* Glassmorphism effect */
   .glass {
-    @apply backdrop-blur-md bg-card/60;
+    @apply backdrop-blur-xl bg-card/40 border border-border/20;
+  }
+  
+  .glass:hover {
+    @apply bg-card/50 border-primary/30;
   }
 
   /* Pipeline node styling */
@@ -278,5 +273,38 @@
 
   .tech-log.error {
     @apply text-destructive;
+  }
+
+  /* Horizontal scrolling container */
+  .horizontal-scroll {
+    @apply overflow-x-auto overflow-y-hidden;
+  }
+
+  .horizontal-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .horizontal-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .horizontal-scroll::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+    opacity: 0.3;
+  }
+
+  .horizontal-scroll::-webkit-scrollbar-thumb:hover {
+    opacity: 0.6;
+  }
+
+  /* Insight card styling for horizontal scroll */
+  .insight-card {
+    @apply flex-shrink-0 w-80 rounded-xl border border-border bg-card shadow-lg transition-all duration-300 hover:border-primary/80 hover:shadow-2xl hover:shadow-primary/30 p-6 space-y-3;
+  }
+
+  /* Neon accent for active/focus states */
+  .neon-accent {
+    @apply relative text-primary after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-gradient-to-r after:from-primary after:via-accent after:to-primary after:rounded-full after:shadow-lg after:shadow-primary/50;
   }
 }

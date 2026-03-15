@@ -2,10 +2,12 @@ import time
 from langchain_mistralai import ChatMistralAI
 from app.core.config import settings
 from app.schemas.agent_schemas import StrategyCritique
-
+import asyncio
 llm = ChatMistralAI(
     model="mistral-small-latest", 
     temperature=0,
+    max_retries=5, 
+    timeout=60,
     api_key=settings.MISTRAL_API_KEY
 ).with_structured_output(StrategyCritique, include_raw=True)
 
@@ -22,6 +24,7 @@ async def critic_node(state):
     prompt = f"Critically audit this growth strategy for data grounding and feasibility: {strategy}"
     
     try:
+        await asyncio.sleep(1.5)
         result = await llm.ainvoke(prompt)
         telemetry = track_telemetry(result['raw'], "critic", start_time)
         

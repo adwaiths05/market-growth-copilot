@@ -80,7 +80,7 @@ export function LivePipelineFeed() {
                       {job.job_id.slice(0, 8)}
                     </span>
                     <div className="flex items-center gap-2">
-                      {status?.status === 'processing' && (
+                      {status?.status === 'running' && (
                         <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
                       )}
                       <span className="text-xs font-medium capitalize">

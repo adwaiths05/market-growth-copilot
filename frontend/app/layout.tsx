@@ -5,6 +5,7 @@ import './globals.css'
 import { Providers } from '@/components/providers'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
+import { BackgroundEffects } from '@/components/background-effects'
 import { Toaster } from 'sonner'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -42,7 +43,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <Providers>
-          <div className="min-h-screen flex flex-col">
+          <BackgroundEffects />
+          <div className="min-h-screen flex flex-col relative z-10">
             <Navbar />
             <main className="flex-1">
               {children}

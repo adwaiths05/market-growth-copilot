@@ -1,3 +1,14 @@
+// Authentication Types
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+}
+
 // Analysis Job Types
 export interface AnalysisJob {
   job_id: string;
@@ -7,10 +18,11 @@ export interface AnalysisJob {
 
 export interface AnalysisStatus {
   job_id: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: "pending" | "running" | "completed" | "failed";
   progress: number;
   error_message?: string;
   events?: PipelineEvent[];
+  execution_timeline?: PipelineEvent[];
 }
 
 export interface PipelineEvent {

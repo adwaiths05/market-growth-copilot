@@ -21,29 +21,37 @@ export function RadarChartDisplay({
   kpiMetrics,
   costMetrics,
 }: RadarChartDisplayProps) {
+  const safeKpiMetrics: KPIMetrics = {
+    conversion_rate: kpiMetrics?.conversion_rate ?? 0,
+    avg_order_value: kpiMetrics?.avg_order_value ?? 0,
+    customer_acquisition_cost: kpiMetrics?.customer_acquisition_cost ?? 0,
+    lifetime_value: kpiMetrics?.lifetime_value ?? 0,
+    market_penetration: kpiMetrics?.market_penetration ?? 0,
+  }
+
   const data = [
     {
       metric: 'Conversion',
-      value: Math.min(kpiMetrics.conversion_rate * 100, 100),
+      value: Math.min(safeKpiMetrics.conversion_rate * 100, 100),
     },
     {
       metric: 'AOV',
-      value: Math.min((kpiMetrics.avg_order_value / 1000) * 100, 100),
+      value: Math.min((safeKpiMetrics.avg_order_value / 1000) * 100, 100),
     },
     {
       metric: 'CAC Efficiency',
       value: Math.min(
-        100 - (kpiMetrics.customer_acquisition_cost / 100) * 10,
+        100 - (safeKpiMetrics.customer_acquisition_cost / 100) * 10,
         100
       ),
     },
     {
       metric: 'LTV',
-      value: Math.min((kpiMetrics.lifetime_value / 5000) * 100, 100),
+      value: Math.min((safeKpiMetrics.lifetime_value / 5000) * 100, 100),
     },
     {
       metric: 'Market Share',
-      value: Math.min(kpiMetrics.market_penetration * 100, 100),
+      value: Math.min(safeKpiMetrics.market_penetration * 100, 100),
     },
   ]
 

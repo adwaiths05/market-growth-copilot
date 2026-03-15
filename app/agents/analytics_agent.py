@@ -4,10 +4,12 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from app.core.config import settings
 from app.schemas.agent_schemas import AnalyticsMetrics, AgentAnalysisOutput
 from app.services.mcp_service import mcp_manager
-
+import asyncio
 llm = ChatMistralAI(
     model="mistral-small-latest", 
     temperature=0,
+    max_retries=5, 
+    timeout=60,
     api_key=settings.MISTRAL_API_KEY
 ).with_structured_output(AnalyticsMetrics, include_raw=True)
 
@@ -27,6 +29,7 @@ async def analytics_node(state):
     ]
     
     try:
+        await asyncio.sleep(1.5)
         result = await llm.ainvoke(prompt)
         telemetry = track_telemetry(result['raw'], "analytics", start_time)
         
