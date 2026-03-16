@@ -128,9 +128,19 @@ async def saver_node(state: AgentState):
             job = result.scalars().first()
             if job:
                 analysis_data = state.get("analysis_result")
+
+                # Safely serialize the analysis data (Pydantic model or dict)
+                if analysis_data:
+                    if hasattr(analysis_data, "model_dump"):
+                        serialized_analysis = analysis_data.model_dump()
+                    else:
+                        serialized_analysis = dict(analysis_data)
+                else:
+                    serialized_analysis = {}
+
                 job.analysis_result = {
                     "plan": state.get("research_plan"),
-                    "agent_analysis": analysis_data.model_dump() if analysis_data else {}
+                    "agent_analysis": serialized_analysis,
                 }
                 job.total_tokens = state.get("total_tokens", 0)
                 job.total_cost = state.get("total_cost", 0.0)

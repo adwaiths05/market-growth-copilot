@@ -1,7 +1,7 @@
 import time
 from langchain_mistralai import ChatMistralAI
 from app.core.config import settings
-from app.schemas.agent_schemas import OptimizationOutput
+from app.schemas.agent_schemas import OptimizationOutput, AgentAnalysisOutput
 import asyncio
 
 # Initialize LLM only if not in demo mode or if key is present
@@ -24,6 +24,9 @@ async def optimization_node(state):
     from app.agents.orchestrator import track_telemetry
     
     current_result = state.get("analysis_result")
+    if current_result is None:
+        # Ensure we always have a container for downstream agents
+        current_result = AgentAnalysisOutput()
     
     # Extract evidence from the state passed by the Research Agent
     prev_confidence = state.get("confidence_metrics", {})
@@ -39,7 +42,7 @@ async def optimization_node(state):
             ],
             priority_level="High"
         )
-        if current_result: 
+        if current_result:
             current_result.growth_strategy = demo_output
         
         end_time = time.time()

@@ -20,8 +20,12 @@ async def analytics_node(state):
     start_time = time.time()
     from app.agents.orchestrator import track_telemetry
     
-    # Gather pricing from local MCP tool
-    pricing = await mcp_manager.call_tool("pricing_client.py", "get_prices", {"url": state["product_url"]})
+    # Gather pricing from local MCP tool (robust to MCP failures)
+    pricing = await mcp_manager.call_tool(
+        "pricing_client.py",
+        "get_competitor_prices",
+        {"product_url": state["product_url"]},
+    )
     
     prompt = [
         SystemMessage(content="You are a Market Analyst. Extract structured metrics."),
